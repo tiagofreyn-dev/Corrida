@@ -29,6 +29,7 @@ export default function Coach() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState('');
   const [aiResult, setAiResult] = useState<CoachAIResult | null>(null);
+  const [coachNote, setCoachNote] = useState('');
 
   const verdict = useMemo(() => analyzeWeek(workouts), [workouts]);
 
@@ -60,6 +61,7 @@ export default function Coach() {
         return { date: d, itens: fs.length, ...t, aguaMl: water[d] ?? 0 };
       });
       const payload = JSON.stringify({
+        recadoDoAtleta: coachNote.trim() || null,
         perfil: {
           objetivo: user.mainGoal, prova: user.raceDistance, dataProva: user.raceDate,
           referencia: `${user.refDistance} em ${user.refTimeMin}:${String(user.refTimeSec).padStart(2, '0')}`,
@@ -105,6 +107,11 @@ export default function Coach() {
       <div className="card">
         <h3>✨ Análise da IA (com seus dados reais)</h3>
         <p className="hint">Cruza perfil + plano + check-ins + RPEs + alimentação e água da semana, diz se está excedendo nas calorias e sugere a próxima semana de treino.</p>
+        <div className="field-row">
+          <label>💬 Recado para o treinador (opcional)</label>
+          <textarea className="text-input ai-text" value={coachNote} onChange={(e) => setCoachNote(e.target.value)}
+            placeholder='Ex: estou achando fácil o tempo de 5:40/km, dá pra baixar? Senti dor no joelho no longão.' />
+        </div>
         <button className="btn primary" disabled={aiBusy} onClick={runAiCoach}>
           {aiBusy ? 'Analisando...' : 'Pedir análise da IA ✨'}
         </button>

@@ -266,6 +266,7 @@ Retorne APENAS o JSON no schema, em português:
 - points: observações baseadas nos dados (cite números reais)
 - adjustments: ações práticas para a próxima semana
 - nextWeek: sugestão de estrutura da próxima semana (ex: "3 leves + 1 tempo + longão 12km") e se deve progredir, manter ou deload
+- O payload pode conter "recadoDoAtleta": se houver, RESPONDA ao pedido dentro de points/adjustments (ex: se acha fácil e os RPEs confirmam, acelere os paces com segurança; se relata dor, priorize cautela/deload e mande avaliar) e reflita isso no 'ajuste' quando seguro; se o pedido for arriscado, negue com explicação
 - ajuste: mudanças SEGURAS e pequenas que o app pode aplicar sozinho (conservador!):
   - longRunDeltaKm: -3 a +2 (0 se manter). Só positivo se aderência ≥85% e RPE controlado
   - easyPaceDeltaSec/tempoPaceDeltaSec/intervalPaceDeltaSec: múltiplos de 5, faixa -10 a +20. +15 no easy se rodagem leve com RPE ≥8
