@@ -7,7 +7,7 @@ import type {
   WeekDay,
   WeeklyVolume,
 } from '../types';
-import { calculatePaces, formatPace } from './paces';
+import { calculatePaces, formatPace, formatPaceRange } from './paces';
 import { macrosForDay } from './nutrition';
 
 // Distância circular entre dois dias da semana (0-6), em dias.
@@ -76,7 +76,24 @@ export function generateCustomPlan(user: UserData): GeneratedPlan {
   const totalRefSec = user.refTimeMin * 60 + user.refTimeSec;
   const paces = calculatePaces(user.refDistance ?? '5k', Math.max(totalRefSec, 600));
 
-  const { easy, long } = volumeBaseKm(user.weeklyVolume);
+  let { easy, long } = volumeBaseKm(user.weeklyVolume);
+
+  // ── Ajuste do coach IA (botão "Aplicar") ──
+  const ov = user.coachOverride;
+  if (ov) {
+    const clamp = (s: number) => Math.max(180, Math.min(900, Math.round(s)));
+    paces.easySec = clamp(paces.easySec + (ov.easyPaceDeltaSec ?? 0));
+    paces.longSec = clamp(paces.longSec + Math.round((ov.easyPaceDeltaSec ?? 0) / 2));
+    paces.tempoSec = clamp(paces.tempoSec + (ov.tempoPaceDeltaSec ?? 0));
+    paces.intervalSec = clamp(paces.intervalSec + (ov.intervalPaceDeltaSec ?? 0));
+    paces.easy = formatPaceRange(paces.easySec, 25);
+    paces.long = formatPaceRange(paces.longSec, 20);
+    paces.tempo = formatPaceRange(paces.tempoSec, 15);
+    paces.interval = formatPaceRange(paces.intervalSec, 15);
+    if (ov.longRunDeltaKm) long = Math.max(5, long + ov.longRunDeltaKm);
+    if (ov.deload) long = Math.max(5, Math.round(long * 0.7));
+    warnings.push(`🤖 Ajuste do coach ativo: ${ov.note || 'adaptação da semana'}. Desfaça na aba Coach se quiser voltar.`);
+  }
 
   const rest = new Set<WeekDay>(user.restDays);
   const runSet = new Set<WeekDay>(user.runDays.filter((d) => !rest.has(d)));
@@ -127,6 +144,12 @@ export function generateCustomPlan(user: UserData): GeneratedPlan {
       intervalDay = null;
       warnings.push('Para o seu nível, o treino intenso foi adaptado para um Tempo Run progressivo em vez de tiros de VO2max.');
     }
+  }
+
+  // Deload do coach IA: semana sem tiros (vira rodagem leve)
+  if (ov?.deload && intervalDay != null) {
+    intervalDay = null;
+    warnings.push('Semana de deload: tiros pausados, tudo em ritmo leve.');
   }
 
   const order: WeekDay[] = [1, 2, 3, 4, 5, 6, 0];

@@ -204,6 +204,15 @@ Valores de kcal/proteína/carboidrato/gordura para a quantidade TOTAL informada 
   }));
 }
 
+export interface PlanAjuste {
+  longRunDeltaKm: number; // ex: 2, -3 ou 0
+  easyPaceDeltaSec: number; // + = mais lento (ex: 15), 0 = mantém
+  tempoPaceDeltaSec: number;
+  intervalPaceDeltaSec: number;
+  deload: boolean; // true = semana leve (sem tiros, longão 70%)
+  note: string; // motivo curto
+}
+
 export interface CoachAIResult {
   score: number;
   headline: string;
@@ -211,7 +220,21 @@ export interface CoachAIResult {
   points: string[];
   adjustments: string[];
   nextWeek: string;
+  ajuste: PlanAjuste;
 }
+
+const AJUSTE_SCHEMA = {
+  type: 'object',
+  properties: {
+    longRunDeltaKm: { type: 'number' },
+    easyPaceDeltaSec: { type: 'number' },
+    tempoPaceDeltaSec: { type: 'number' },
+    intervalPaceDeltaSec: { type: 'number' },
+    deload: { type: 'boolean' },
+    note: { type: 'string' },
+  },
+  required: ['longRunDeltaKm', 'easyPaceDeltaSec', 'tempoPaceDeltaSec', 'intervalPaceDeltaSec', 'deload', 'note'],
+};
 
 const COACH_SCHEMA = {
   type: 'object',
@@ -222,8 +245,9 @@ const COACH_SCHEMA = {
     points: { type: 'array', items: { type: 'string' } },
     adjustments: { type: 'array', items: { type: 'string' } },
     nextWeek: { type: 'string' },
+    ajuste: AJUSTE_SCHEMA,
   },
-  required: ['score', 'headline', 'caloriesVerdict', 'points', 'adjustments', 'nextWeek'],
+  required: ['score', 'headline', 'caloriesVerdict', 'points', 'adjustments', 'nextWeek', 'ajuste'],
 };
 
 /** Análise do treinador com base no histórico real do atleta. */
@@ -241,8 +265,20 @@ Retorne APENAS o JSON no schema, em português:
 - caloriesVerdict: diga se está excedendo, abaixo ou dentro da meta calórica/proteica e o efeito disso no objetivo corporal
 - points: observações baseadas nos dados (cite números reais)
 - adjustments: ações práticas para a próxima semana
-- nextWeek: sugestão de estrutura da próxima semana (ex: "3 leves + 1 tempo + longão 12km") e se deve progredir, manter ou deload`;
+- nextWeek: sugestão de estrutura da próxima semana (ex: "3 leves + 1 tempo + longão 12km") e se deve progredir, manter ou deload
+- ajuste: mudanças SEGURAS e pequenas que o app pode aplicar sozinho (conservador!):
+  - longRunDeltaKm: -3 a +2 (0 se manter). Só positivo se aderência ≥85% e RPE controlado
+  - easyPaceDeltaSec/tempoPaceDeltaSec/intervalPaceDeltaSec: múltiplos de 5, faixa -10 a +20. +15 no easy se rodagem leve com RPE ≥8
+  - deload: true apenas se RPE 10, 3 faltas seguidas ou RPE médio ≥8.5
+  - note: motivo em 1 frase
+  - Se está tudo bem, retorne tudo 0/false com note "manter plano"`;
   const data = (await generateJSON(apiKey, model, system, payload, COACH_SCHEMA, onRetry)) as CoachAIResult;
+  const num = (v: unknown, lo: number, hi: number): number => {
+    let n = Math.round(Number(v) || 0);
+    n = Math.max(lo, Math.min(hi, n));
+    return n;
+  };
+  const aj = data.ajuste ?? { longRunDeltaKm: 0, easyPaceDeltaSec: 0, tempoPaceDeltaSec: 0, intervalPaceDeltaSec: 0, deload: false, note: '' };
   return {
     score: Math.max(0, Math.min(100, Math.round(Number(data.score) || 0))),
     headline: String(data.headline ?? ''),
@@ -250,5 +286,13 @@ Retorne APENAS o JSON no schema, em português:
     points: (data.points ?? []).map(String),
     adjustments: (data.adjustments ?? []).map(String),
     nextWeek: String(data.nextWeek ?? ''),
+    ajuste: {
+      longRunDeltaKm: num(aj.longRunDeltaKm, -5, 3),
+      easyPaceDeltaSec: num(aj.easyPaceDeltaSec, -15, 30),
+      tempoPaceDeltaSec: num(aj.tempoPaceDeltaSec, -15, 30),
+      intervalPaceDeltaSec: num(aj.intervalPaceDeltaSec, -15, 30),
+      deload: Boolean(aj.deload),
+      note: String(aj.note ?? ''),
+    },
   };
 }

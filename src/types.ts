@@ -25,6 +25,16 @@ export type WeeklyVolume = '0-10' | '10-25' | '25-40' | '40+';
 export type BodyGoal = 'manter' | 'hipertrofia' | 'cutting';
 export type DietPref = 'onivoro' | 'vegetariano' | 'vegano' | 'lowcarb';
 
+/** Ajuste aplicado pelo coach IA (botão "Aplicar") — respeitado pelo gerador. */
+export interface PlanOverride {
+  longRunDeltaKm?: number; // ex: +2 ou -3 (mín. 5km no total)
+  easyPaceDeltaSec?: number; // + = mais lento (ex: +15), - = mais rápido
+  tempoPaceDeltaSec?: number;
+  intervalPaceDeltaSec?: number;
+  deload?: boolean; // semana leve: sem tiros, longão 70%
+  note?: string; // motivo resumido exibido no dashboard
+}
+
 export interface UserData {
   // 1. Objetivo
   mainGoal: MainGoal | null;
@@ -46,6 +56,8 @@ export interface UserData {
   // 6. Nutrição
   bodyGoal: BodyGoal | null;
   dietPref: DietPref | null;
+  // Ajuste do coach IA (null = plano original)
+  coachOverride: PlanOverride | null;
 }
 
 export const initialUserData: UserData = {
@@ -63,6 +75,7 @@ export const initialUserData: UserData = {
   restDays: [],
   bodyGoal: null,
   dietPref: null,
+  coachOverride: null,
 };
 
 // ── Plano gerado ────────────────────────────────────────────────────────

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { analyzeWeek, todayStr } from '../lib/coach';
 import { analyzeCoach, type CoachAIResult } from '../lib/gemini';
+import type { PlanOverride } from '../types';
 import { usePlan } from '../store/PlanContext';
 
-const RPE_LABELS: Record<number, string> = {
-  0: 'Nada — faltei ao treino',
+const RPE_LABELS: Record<number, string> = {  0: 'Nada — faltei ao treino',
   1: 'Muito, muito leve',
   2: 'Leve',
   3: 'Moderado-leve',
@@ -18,7 +18,7 @@ const RPE_LABELS: Record<number, string> = {
 };
 
 export default function Coach() {
-  const { plan, workouts, addWorkout, removeWorkout, user, foods, water, aiKey, aiModel } = usePlan();
+  const { plan, workouts, addWorkout, removeWorkout, user, setUser, foods, water, aiKey, aiModel } = usePlan();
   const today = todayStr();
   const [title, setTitle] = useState('');
   const [done, setDone] = useState(true);
@@ -119,13 +119,20 @@ export default function Coach() {
             {aiResult.adjustments.map((a, i) => <p key={i}>→ {a}</p>)}
             <strong>📅 Próxima semana:</strong>
             <p>{aiResult.nextWeek}</p>
+            <AjusteBox result={aiResult} />
           </div>
         )}
       </div>
 
+      {user.coachOverride && (
+        <div className="card" style={{ borderLeft: '6px solid var(--lift)' }}>
+          <p>🤖 <strong>Ajuste do coach ativo:</strong> {describeOverride(user.coachOverride)}</p>
+          <button className="btn ghost sm" onClick={() => setUser({ coachOverride: null })}>Desfazer (voltar ao plano original)</button>
+        </div>
+      )}
+
       <div className="card">
-        <h3>✅ Check-in do treino de hoje</h3>
-        {plannedToday && (
+        <h3>✅ Check-in do treino de hoje</h3>        {plannedToday && (
           <p className="hint">Previsto hoje: <strong>{plannedToday.title}</strong>{plannedToday.distanceKm > 0 ? ` · ${plannedToday.distanceKm}km` : ''}</p>
         )}
         <div className="field-row">
@@ -181,6 +188,59 @@ export default function Coach() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function paceDeltaLabel(v: number): string {
+  return `${v > 0 ? '+' : ''}${v}s/km`;
+}
+
+/** Texto legível do ajuste (usado no banner e no botão aplicar). */
+export function describeOverride(ov: PlanOverride): string {
+  const parts: string[] = [];
+  if (ov.deload) parts.push('semana de deload (sem tiros, longão 70%)');
+  if (ov.longRunDeltaKm) parts.push(`longão ${ov.longRunDeltaKm > 0 ? '+' : ''}${ov.longRunDeltaKm}km`);
+  if (ov.easyPaceDeltaSec) parts.push(`easy ${paceDeltaLabel(ov.easyPaceDeltaSec)}`);
+  if (ov.tempoPaceDeltaSec) parts.push(`tempo ${paceDeltaLabel(ov.tempoPaceDeltaSec)}`);
+  if (ov.intervalPaceDeltaSec) parts.push(`tiros ${paceDeltaLabel(ov.intervalPaceDeltaSec)}`);
+  const base = parts.length > 0 ? parts.join(' · ') : 'manter plano';
+  return ov.note ? `${base} — ${ov.note}` : base;
+}
+
+/** Botão "Aplicar ao meu plano" dentro do resultado da IA. */
+function AjusteBox({ result }: { result: CoachAIResult }) {
+  const { user, setUser } = usePlan();
+  const aj = result.ajuste;
+  const has = aj.longRunDeltaKm !== 0 || aj.easyPaceDeltaSec !== 0 ||
+    aj.tempoPaceDeltaSec !== 0 || aj.intervalPaceDeltaSec !== 0 || aj.deload;
+
+  if (!has) return <p className="hint">✅ Plano mantido — nenhum ajuste necessário esta semana.</p>;
+
+  const ov: PlanOverride = {
+    ...(aj.longRunDeltaKm !== 0 ? { longRunDeltaKm: aj.longRunDeltaKm } : {}),
+    ...(aj.easyPaceDeltaSec !== 0 ? { easyPaceDeltaSec: aj.easyPaceDeltaSec } : {}),
+    ...(aj.tempoPaceDeltaSec !== 0 ? { tempoPaceDeltaSec: aj.tempoPaceDeltaSec } : {}),
+    ...(aj.intervalPaceDeltaSec !== 0 ? { intervalPaceDeltaSec: aj.intervalPaceDeltaSec } : {}),
+    ...(aj.deload ? { deload: true } : {}),
+    note: aj.note,
+  };
+
+  if (user.coachOverride != null) {
+    return (
+      <div>
+        <p className="hint">✅ Ajuste aplicado à planilha (vale no PC e no celular).</p>
+        <button className="btn ghost sm" onClick={() => setUser({ coachOverride: null })}>Desfazer</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="add-box">
+      <p>🤖 A IA sugere aplicar: <strong>{describeOverride(ov)}</strong></p>
+      <button className="btn primary" onClick={() => setUser({ coachOverride: ov })}>
+        Aplicar ao meu plano ✓
+      </button>
     </div>
   );
 }
