@@ -1,5 +1,5 @@
 // Service worker do app (cache offline). Troque CACHE a cada release.
-const CACHE = 'runna-v1';
+const CACHE = 'runna-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
