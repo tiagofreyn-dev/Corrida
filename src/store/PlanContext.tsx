@@ -618,7 +618,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
 function traduzAuth(msg: string): string {
   if (/invalid login credentials/i.test(msg)) return 'E-mail ou senha incorretos.';
-  if (/already registered|already exists|user already/i.test(msg)) return 'Este e-mail já tem conta. Use Entrar.';
+  if (/email not confirmed/i.test(msg)) return 'Conta criada mas e-mail não confirmado. Desative "Confirm email" no Supabase ou confirme pelo link do e-mail.';
+  if (/already registered|already exists|user already/i.test(msg)) return 'Este e-mail já tem conta. Use Entrar (se travar, apague o usuário no Supabase e crie de novo).';
   if (/password.*(short|least|6)/i.test(msg)) return 'A senha precisa de ao menos 6 caracteres.';
   if (/email.*invalid/i.test(msg)) return 'E-mail inválido.';
   return msg;
